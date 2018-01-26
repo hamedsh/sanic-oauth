@@ -144,12 +144,12 @@ class Client(abc.ABC):
                 reason=f'Failed to obtain User information. HTTP status code: {response.status}'
             )
         data = await response.json()
-        user = UserInfo(**dict(self.user_parse(data)))
+        user = await self.user_parse(data)
         return user, data
 
     @abc.abstractmethod
     @classmethod
-    def user_parse(cls, data):
+    async def user_parse(cls, data) -> UserInfo:
         """Parse user's information from given provider data."""
         pass
 
