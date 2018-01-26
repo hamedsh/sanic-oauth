@@ -38,6 +38,6 @@ setup(
     py_modules=['aioauth_client'],
     install_requires=[
         "yarl >= 1.1.0",
-        "aiohttp >= 2.3.9"
+        "aiohttp >= 2.3.9",
     ],
 )

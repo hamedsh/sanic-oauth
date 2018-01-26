@@ -2,3 +2,4 @@ pylint
 pylint-common
 mypy
 pycodestyle
+sanic-session
