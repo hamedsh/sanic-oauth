@@ -45,6 +45,31 @@ class GoogleClient(OAuth2Client):
         )
 
 
+class GitlabClient(OAuth2Client):
+
+    """Support Gitlab
+    * Dashboard: https://gitlab.com/profile/applications
+    * Docs: https://docs.gitlab.com/ce/api/oauth2.html
+    * API reference: https://docs.gitlab.com/ee/api/README.html
+    """
+
+    access_token_url = 'https://gitlab.com/oauth/token'
+    authorize_url = 'https://gitlab.com/oauth/authorize'
+    base_url = 'https://gitlab.com/api/v4'
+    name = 'gitlab'
+    user_info_url = 'https://gitlab.com/api/v4/user'
+
+    @classmethod
+    def user_parse(cls, data) -> UserInfo:
+        return UserInfo(
+            id=data.get('id'),
+            email=data.get('email'),
+            pciture=data.get('avatar_url'),
+            username=data.get('username'),
+            link=data.get('web_url')
+        )
+
+
 class BitbucketClient(OAuth1Client):
 
     """Support Bitbucket.

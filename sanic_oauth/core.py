@@ -27,14 +27,16 @@ _log = logging.getLogger(__name__)
 
 class UserInfo:  # pylint: disable=too-few-public-methods
 
-    __slots__ = [
+    default_attrs = [
         'id', 'email', 'first_name', 'last_name', 'username', 'picture',
         'link', 'locale', 'city', 'country', 'gender'
     ]
 
     def __init__(self, **kwargs) -> None:
-        for slot in self.__slots__:
-            setattr(self, slot, kwargs.get(slot, ''))
+        for attr in self.default_attrs:
+            setattr(self, attr, '')
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
 
 class Signature(abc.ABC):
@@ -335,7 +337,6 @@ class OAuth2Client(Client):  # pylint: disable=abstract-method
         else:
             data = await response.text()
             data = dict(parse_qsl(data))
-
         try:
             self.access_token = data['access_token']
         except Exception:
