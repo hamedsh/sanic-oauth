@@ -18,6 +18,8 @@ run-test:
 
 upload-to-pypi:
   stage: upload
+  before_script:
+    - pip install twine
   script:
     - python setup.py bdist_wheel
     - twine upload dist/*
