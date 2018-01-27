@@ -12,7 +12,7 @@ check-code:
   stage: test
   script: make check
 
-check-code:
+run-test:
   stage: test
   script: make pytest
 
