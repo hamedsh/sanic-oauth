@@ -109,3 +109,8 @@ Usage
 Example
 =======
 
+You can see example_ with sanic_session usage. Google credentials are wrong, so to run it you will need own.
+
+
+
+.. _example: ./example.py
