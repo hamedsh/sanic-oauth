@@ -56,7 +56,7 @@ async def oauth(request):
     )
     if 'code' not in request.args:
         return redirect(client.get_authorize_url(
-            scope='read_user',
+            scope='email profile',
             redirect_uri=cfg.redirect_uri
         ))
     token, data = await client.get_access_token(
