@@ -2,7 +2,7 @@
 
 from os import path as op
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 def _read(fname):
@@ -19,6 +19,7 @@ setup(
     long_description=_read('README.rst'),
     keywords=['asyncio', 'http', 'oauth', 'sanic'],
     author='Gladyshev Bogdan',
+    packages=find_packages(),
     author_email='siredvin.dark@gmail.com',
     url='https://gitlab.com/SirEdvin/sanic-oauth',
     classifiers=[
@@ -34,8 +35,6 @@ setup(
         'Topic :: Software Development :: Testing',
         'Topic :: Utilities',
     ],
-
-    py_modules=['aioauth_client'],
     install_requires=[
         "yarl >= 1.1.0",
         "aiohttp >= 2.3.9",
