@@ -666,3 +666,45 @@ class PinterestClient(OAuth2Client):
             last_name=data.get('last_name'),
             link=data.get('url')
         )
+
+
+class DiscordClient(OAuth2Client):
+    """Support Discord.
+    * Dashboard: https://discordapp.com/developers/applications/me
+    * Docs: https://discordapp.com/developers/docs/intro
+    * API reference: https://discordapp.com/developers/docs/reference
+    """
+
+    name = 'discord'
+    access_token_url = 'https://discordapp.com/api/oauth2/token'
+    authorize_url = 'https://discordapp.com/api/oauth2/authorize'
+    base_url = 'https://discordapp.com/api/'
+    user_info_url = 'https://discordapp.com/api/users/@me'
+
+    def __init__(self, *args, **kwargs):
+        """Set default scope."""
+        super(DiscordClient, self).__init__(*args, **kwargs)
+        self.params.setdefault('scope', 'email')
+
+    async def request(
+            self, method: str, url: str,
+            params: Dict[str, str] = None, headers: Dict[str, str] = None, **aio_kwargs) -> ClientResponse:
+        """Request OAuth2 resource."""
+        if self.access_token:
+            headers = headers or {}
+            headers['Authorization'] = "Bearer {}".format(self.access_token)
+        return await self.aiohttp_session.request(
+            method, url, params=params, headers=headers, **aio_kwargs
+        )
+
+    @classmethod
+    def user_parse(cls, data) -> UserInfo:
+        """Parse information from the provider."""
+        return UserInfo(
+            id=data.get('id'),
+            username=data.get('username'),
+            discriminator=data.get('discriminator'),
+            avatar=data.get('avatar'),
+            verified=data.get('verified'),
+            email=data.get('email')
+        )

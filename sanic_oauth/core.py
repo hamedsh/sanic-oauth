@@ -339,7 +339,7 @@ class OAuth2Client(Client):  # pylint: disable=abstract-method
             data = dict(parse_qsl(data))
         try:
             self.access_token = data['access_token']
-        except Exception:
+        except KeyError:
             raise HTTPBadRequest(reason='Failed to obtain OAuth access token.')
         finally:
             response.close()

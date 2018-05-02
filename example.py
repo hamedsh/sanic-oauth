@@ -2,9 +2,9 @@ import aiohttp
 from sanic import Sanic
 from sanic.response import redirect, text
 
-from sanic_oauth.providers import GoogleClient, UserInfo
+from sanic_oauth.providers import UserInfo, GoogleClient
 from sanic_session import InMemorySessionInterface
-
+from sanic.log import error_logger
 
 app = Sanic('sanic_ouath_example')
 
@@ -40,8 +40,8 @@ class cfg:
     redirect_uri = 'http://127.0.0.1:8000/oauth'  # define it in google api console
 
     # client id and secret from google api console
-    client_id = "123456789012-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com"
-    client_secret = "abcdEFGHijklMNOPqrstUVWX"
+    client_id = "441279057414586368"
+    client_secret = "Cqivczm6hfUlVzRBm86L1s-sITrsSjs1"
 
     # secret_key for session encryption
     # key must be 32 url-safe base64-encoded bytes
@@ -86,7 +86,8 @@ def login_required(fn):
 
         try:
             user, info = await client.user_info()
-        except Exception as e:
+        except Exception as exc:
+            error_logger.exception(exc)
             return redirect(cfg.oauth_redirect_path)
 
         return await fn(request, user, **kwargs)
