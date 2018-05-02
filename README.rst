@@ -9,7 +9,7 @@ Available providers (in alphabetic order):
 - Amazon
 - BitBucket
 - BitBucket v2
-- Discord
+- Discord (thanks to @smlbiobot)
 - Eventbrite
 - Facebook
 - Flickr
