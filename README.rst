@@ -4,29 +4,30 @@ Sanic OAuth
 
 Simple OAuth library to work with sanic. Basically, just rewrited version of aioauth_client_ with async/await syntax and some optimization. Can be used only with python 3.5/3.6.
 
-Available providers:
+Available providers (in alphabetic order):
 
-- Google
-- GitLab
+- Amazon
 - BitBucket
 - BitBucket v2
-- Flickr
-- Meetup
-- Plurk
-- Twitter
-- Tumblr
-- Vimeo
-- Yahoo
-- Amazon
+- Discord
 - Eventbrite
 - Facebook
+- Flickr
 - Foursquare
 - Github
-- vk.com
-- ok.ru
-- Yandex
+- GitLab
+- Google
 - LinkedIn
+- Meetup
+- ok.ru
 - Pinterest
+- Plurk
+- Tumblr
+- Twitter
+- Vimeo
+- vk.com
+- Yahoo
+- Yandex
 
 
 Requirements
