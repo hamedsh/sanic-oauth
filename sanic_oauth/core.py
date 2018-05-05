@@ -19,7 +19,7 @@ __license__ = "MIT"
 __version__ = "0.1.2"
 __maintainer__ = "Bogdan Gladyshev"
 __email__ = "siredvin.dark@gmail.com"
-__status__ = "Development"
+__status__ = "Production"
 
 
 _log = logging.getLogger(__name__)

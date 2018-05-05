@@ -45,96 +45,33 @@ Just install via pip:
 
     pip install sanic_oauth
 
+Note, that to use blueprint correctly, you need to additionally install :code:`sanic` and :code:`sanic-session`.
+
 
 Usage
 =====
 
-.. code:: python
+Simple way for use this is blueprint with oauth configuration. 
 
-    # OAuth1
-    import aiohttp
-    from sanic_oauth import TwitterClient
+But, before use it you need to:
 
-    session = aiohttp.ClientSession()
-    twitter = TwitterClient(
-        session
-        consumer_key='J8MoJG4bQ9gcmGh8H7XhMg',
-        consumer_secret='7WAscbSy65GmiVOvMU5EBYn5z80fhQkcFWSLMJJu4',
-    )
-
-    request_token, request_token_secret, _ = await twitter.get_request_token()
-
-    authorize_url = twitter.get_authorize_url(request_token)
-    print("Open",authorize_url,"in a browser")
-    # ...
-    # Reload client to authorize_url and get oauth_verifier
-    # ...
-    print("PIN code:")
-    oauth_verifier = input()
-    oauth_token, oauth_token_secret, _ = await twitter.get_access_token(oauth_verifier)
-
-    # Save the tokens for later use
-
-    # ...
-
-    twitter = TwitterClient(
-        session,
-        consumer_key='J8MoJG4bQ9gcmGh8H7XhMg',
-        consumer_secret='7WAscbSy65GmiVOvMU5EBYn5z80fhQkcFWSLMJJu4',
-        oauth_token=oauth_token,
-        oauth_token_secret=oauth_token_secret,
-    )
-
-    timeline = await twitter.request('GET', 'statuses/home_timeline.json')
-    content = await timeline.read()
-    print(content)
-    session.close()
+1. Create :code:`aiohttp.ClientSession` and bind to app like :code:`async_session` variable.
+2. Create session interface from :code:`sanic-session` package and bind it to app like :code:`session_interface` variable.
+3. Configure :code:`app.config` settings. You should pass :code:`OAUTH_PROVIDER, OAUTH_REDIRECT_URI, OAUTH_SCOPE` and another settings, for example, :code:`OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET`. Every setting with :code:`OAUTH` prefix will be passed to oauth provider construction.
+4. Apply blueprint 
+5. Add decorator :code:`login_required` to routes, that required oauth.
 
 
-.. code:: python
-    
-    # OAuth2
-    import aiohttp
-    from aioauth_client import GithubClient
-
-    session = aiohttp.ClientSession()
-    github = GithubClient(
-        session,
-        client_id='b6281b6fe88fa4c313e6',
-        client_secret='21ff23d9f1cad775daee6a38d230e1ee05b04f7c',
-    )
-
-    authorize_url = github.get_authorize_url(scope="user:email")
-
-    # ...
-    # Reload client to authorize_url and get code
-    # ...
-
-    otoken, _ = await github.get_access_token(code)
-
-    # Save the token for later use
-
-    # ...
-
-    github = GithubClient(
-        session,
-        client_id='b6281b6fe88fa4c313e6',
-        client_secret='21ff23d9f1cad775daee6a38d230e1ee05b04f7c',
-        access_token=otoken,
-    )
-
-    response = await github.request('GET', 'user')
-    user_info = await response.json()
-    session.close()
+You can see example_ for more details.
 
 
+Advanced usage
+==============
 
-Example
-=======
-
-You can see example_ with sanic_session usage. Google credentials are wrong, so to run it you will need own.
+If you don't like current blueprint, you always can use providers directly and implements you own logic, like in old_example_.
 
 
 
 .. _example: ./example.py
+.. _old_example: ./old_example.py
 .. _aioauth_client: https://github.com/klen/aioauth-client
