@@ -14,7 +14,7 @@ def _read(fname):
 
 setup(
     name='sanic-oauth',
-    version='0.2.1',
+    version='0.2.2',
     license='MIT',
     long_description=_read('README.rst'),
     keywords=['asyncio', 'http', 'oauth', 'sanic'],
@@ -23,7 +23,7 @@ setup(
     author_email='siredvin.dark@gmail.com',
     url='https://gitlab.com/SirEdvin/sanic-oauth',
     classifiers=[
-        'Development Status :: 4 - Production/Stable',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
