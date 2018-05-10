@@ -130,5 +130,7 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
 
     if oauth_email_regex:
         sanic_app.config.OAUTH_EMAIL_REGEX = re.compile(oauth_email_regex)
+    else:
+        sanic_app.config.OAUTH_EMAIL_REGEX = None
 
     sanic_app.add_route(oauth, oauth_endpoint_path)
