@@ -5,7 +5,7 @@ import re
 
 from sanic import Blueprint, Sanic
 from sanic.request import Request
-from sanic.response import HTTPResponse, redirect, text
+from sanic.response import HTTPResponse, redirect
 
 __author__ = "Bogdan Gladyshev"
 __copyright__ = "Copyright 2017, Bogdan Gladyshev"
