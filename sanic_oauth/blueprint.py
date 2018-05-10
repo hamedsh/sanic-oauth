@@ -1,9 +1,11 @@
 import importlib
 import logging
+from functools import partial
+import re
 
 from sanic import Blueprint, Sanic
 from sanic.request import Request
-from sanic.response import HTTPResponse, redirect
+from sanic.response import HTTPResponse, redirect, text
 
 __author__ = "Bogdan Gladyshev"
 __copyright__ = "Copyright 2017, Bogdan Gladyshev"
@@ -38,11 +40,17 @@ async def oauth(request: Request) -> HTTPResponse:
     return redirect('/')
 
 
-def login_required(async_handler):
+def login_required(async_handler=None, add_user_info=True, email_regex=None):
     """
     auth decorator
     call function(request, user: <sanic_oauth UserInfo object>)
     """
+
+    if async_handler is None:
+        return partial(login_required, add_user_info=add_user_info, email_regex=email_regex)
+
+    if email_regex is not None:
+        email_regex = re.compile(email_regex)
 
     async def wrapped(request, **kwargs):
 
@@ -57,7 +65,15 @@ def login_required(async_handler):
             _log.exception(exc)
             return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
 
-        return await async_handler(request, user, **kwargs)
+        local_email_regex = email_regex or request.app.config.OAUTH_EMAIL_REGEX
+
+        if local_email_regex and user.email:
+            if not local_email_regex.match(user.email):
+                return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
+
+        if add_user_info:
+            return await async_handler(request, user, **kwargs)
+        return await async_handler(request, **kwargs)
 
     return wrapped
 
@@ -78,6 +94,7 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
     oauth_redirect_uri: str = sanic_app.config.pop('OAUTH_REDIRECT_URI', None)
     oauth_scope: str = sanic_app.config.pop('OAUTH_SCOPE', None)
     oauth_endpoint_path: str = sanic_app.config.pop('OAUTH_ENDPOINT_PATH', '/oauth')
+    oauth_email_regex: str = sanic_app.config.pop('OAUTH_EMAIL_REGEX', None)
     if provider_class_link is None:
         raise OAuthConfigurationException("You should setup OAUTH_PROVIDER setting for app")
     if oauth_redirect_uri is None:
@@ -110,5 +127,8 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
     sanic_app.config.OAUTH_REDIRECT_URI = oauth_redirect_uri
     sanic_app.config.OAUTH_SCOPE = oauth_scope
     sanic_app.config.OAUTH_ENDPOINT_PATH = oauth_endpoint_path
+
+    if oauth_email_regex:
+        sanic_app.config.OAUTH_EMAIL_REGEX = re.compile(oauth_email_regex)
 
     sanic_app.add_route(oauth, oauth_endpoint_path)
