@@ -3,6 +3,7 @@ import logging
 from functools import partial
 import re
 
+from aiohttp.web_exceptions import HTTPBadRequest
 from sanic import Blueprint, Sanic
 from sanic.request import Request
 from sanic.response import HTTPResponse, redirect
@@ -61,7 +62,7 @@ def login_required(async_handler=None, add_user_info=True, email_regex=None):
 
         try:
             user, _info = await client.user_info()
-        except KeyError as exc:
+        except (KeyError, HTTPBadRequest) as exc:
             _log.exception(exc)
             return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
 
