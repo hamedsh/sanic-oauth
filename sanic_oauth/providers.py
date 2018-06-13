@@ -27,21 +27,18 @@ class GoogleClient(OAuth2Client):
     authorize_url = 'https://accounts.google.com/o/oauth2/auth'
     base_url = 'https://www.googleapis.com/plus/v1/'
     name = 'google'
-    user_info_url = 'https://www.googleapis.com/plus/v1/people/me'
+    user_info_url = 'https://www.googleapis.com/userinfo/v2/me'
 
     @classmethod
     def user_parse(cls, data) -> UserInfo:
         """Parse information from provider."""
-        email = next(filter(lambda x: x['type'] == 'account', data.get('emails', [])), {'value': ''})
         return UserInfo(
-            id=data.get('sub') or data.get('id'),
-            email=email['value'],
-            username=data.get('nickname'),
-            first_name=data.get('name', {}).get('givenName'),
-            last_name=data.get('name', {}).get('familyName'),
-            locale=data.get('language'),
-            link=data.get('url'),
-            picture=data.get('image', {}).get('url')
+            id=data.get('sub', data.get('id')),
+            email=data.get('email'),
+            verified_email=data.get('verified_email'),
+            first_name=data.get('given_name'),
+            last_name=data.get('family_name'),
+            picture=data.get('picture'),
         )
 
 
