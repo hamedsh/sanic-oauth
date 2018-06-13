@@ -14,7 +14,7 @@ def _read(fname):
 
 setup(
     name='sanic-oauth',
-    version='0.2.3',
+    version='0.2.4',
     license='MIT',
     long_description=_read('README.rst'),
     keywords=['asyncio', 'http', 'oauth', 'sanic'],
