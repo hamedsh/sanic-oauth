@@ -6,6 +6,7 @@ from sanic_oauth.providers import TwitterClient, GithubClient
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip
 async def test_oauth1():
     async with ClientSession() as session:
         twitter = TwitterClient(

@@ -38,7 +38,7 @@ async def oauth(request: Request) -> HTTPResponse:
         redirect_uri=request.app.config.OAUTH_REDIRECT_URI
     )
     request['session']['token'] = token
-    return redirect('/')
+    return redirect(request['session'].get('after_auth_redirect', request.app.config.OAUTH_AFTER_AUTH_DEFAULT_REDIRECT))
 
 
 def login_required(async_handler=None, add_user_info=True, email_regex=None):
@@ -56,6 +56,7 @@ def login_required(async_handler=None, add_user_info=True, email_regex=None):
     async def wrapped(request, **kwargs):
 
         if 'token' not in request['session']:
+            request['session']['after_auth_redirect'] = request.path
             return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
 
         client = request.app.oauth_factory(access_token=request['session']['token'])
@@ -91,6 +92,7 @@ async def configuration_check(sanic_app: Sanic, _loop) -> None:
 async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
     from .core import Client
 
+    sanic_app.config.setdefault('OAUTH_AFTER_AUTH_DEFAULT_REDIRECT', '/')
     provider_class_link: str = sanic_app.config.pop('OAUTH_PROVIDER', None)
     oauth_redirect_uri: str = sanic_app.config.pop('OAUTH_REDIRECT_URI', None)
     oauth_scope: str = sanic_app.config.pop('OAUTH_SCOPE', None)
