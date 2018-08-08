@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2018-08-08
+
+### Fixed
+
+- `user_info_url` now can be passed via env variable `SANIC_OAUTH_USER_INFO_URL`
+
+### Changed
+
+- `create_oauth_factory` blueprint now will start after (!) server start to provide ability to configure aplication itself
+- All requirements properly pinned
+
 ## [0.2.4] - 2018-06-13
 
 ### Fixed

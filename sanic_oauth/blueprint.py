@@ -88,7 +88,7 @@ async def configuration_check(sanic_app: Sanic, _loop) -> None:
         raise OAuthConfigurationException("You should configure session_interface from sanic-session")
 
 
-@oauth_blueprint.listener('before_server_start')
+@oauth_blueprint.listener('after_server_start')
 async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
     from .core import Client
 

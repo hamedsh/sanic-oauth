@@ -107,13 +107,14 @@ class Client(abc.ABC):
 
     def __init__(
             self, aiohttp_session: ClientSession, base_url: str = None, authorize_url: str = None, access_token_key: str = None,
-            access_token_url: str = None) -> None:
+            access_token_url: str = None, user_info_url: str = None) -> None:
         """Initialize the client."""
         self.base_url = base_url or self.base_url
         self.aiohttp_session = aiohttp_session
         self.authorize_url = authorize_url or self.authorize_url
         self.access_token_key = access_token_key or self.access_token_key
         self.access_token_url = access_token_url or self.access_token_url
+        self.user_info_url = user_info_url or self.user_info_url
 
     def _get_url(self, url: str) -> str:
         """Build provider's url. Join with base_url part if needed."""
@@ -166,12 +167,16 @@ class OAuth1Client(Client):  # pylint: disable=abstract-method
     version = '1.0'
 
     def __init__(  # pylint: disable=too-many-arguments
-            self, aiohttp_session: ClientSession, consumer_key: str, consumer_secret: str, base_url: str = None,
-            authorize_url: str = None, oauth_token: str = None, oauth_token_secret: str = None,
-            request_token_url: str = None, access_token_url: str = None, access_token_key: str = None,
-            signature=None, **params) -> None:
+            self, aiohttp_session: ClientSession, consumer_key: str, consumer_secret: str,
+            base_url: str = None, authorize_url: str = None, oauth_token: str = None,
+            oauth_token_secret: str = None, request_token_url: str = None,
+            access_token_url: str = None, access_token_key: str = None, signature=None,
+            user_info_url: str = None, **params) -> None:
         """Initialize the client."""
-        super().__init__(aiohttp_session, base_url, authorize_url, access_token_key, access_token_url)
+        super().__init__(
+            aiohttp_session, base_url, authorize_url,
+            access_token_key, access_token_url, user_info_url
+        )
 
         self.oauth_token = oauth_token
         self.oauth_token_secret = oauth_token_secret
@@ -277,11 +282,15 @@ class OAuth2Client(Client):  # pylint: disable=abstract-method
     shared_key = 'code'
 
     def __init__(
-            self, aiohttp_session: ClientSession, client_id: str, client_secret: str, base_url: str = None,
-            authorize_url: str = None, access_token: str = None, access_token_url: str = None,
-            access_token_key: str = None, **params) -> None:
+            self, aiohttp_session: ClientSession, client_id: str,
+            client_secret: str, base_url: str = None, authorize_url: str = None,
+            access_token: str = None, access_token_url: str = None,
+            access_token_key: str = None, user_info_url: str = None, **params) -> None:
         """Initialize the client."""
-        super().__init__(aiohttp_session, base_url, authorize_url, access_token_key, access_token_url)
+        super().__init__(
+            aiohttp_session, base_url, authorize_url,
+            access_token_key, access_token_url, user_info_url
+        )
 
         self.access_token = access_token
         self.client_id = client_id
