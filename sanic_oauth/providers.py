@@ -61,7 +61,7 @@ class GitlabClient(OAuth2Client):
         return UserInfo(
             id=data.get('id'),
             email=data.get('email'),
-            pciture=data.get('avatar_url'),
+            picture=data.get('avatar_url'),
             username=data.get('username'),
             link=data.get('web_url')
         )
