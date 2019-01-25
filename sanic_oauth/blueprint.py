@@ -7,6 +7,7 @@ from aiohttp.web_exceptions import HTTPBadRequest
 from sanic import Blueprint, Sanic
 from sanic.request import Request
 from sanic.response import HTTPResponse, redirect
+from .core import UserInfo
 
 __author__ = "Bogdan Gladyshev"
 __copyright__ = "Copyright 2017, Bogdan Gladyshev"
@@ -55,27 +56,36 @@ def login_required(async_handler=None, add_user_info=True, email_regex=None):
 
     async def wrapped(request, **kwargs):
 
+        # Do core oauth authentication once per session
         if 'token' not in request['session']:
             request['session']['after_auth_redirect'] = request.path
             return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
 
-        client = request.app.oauth_factory(access_token=request['session']['token'])
+        # Shortcircuit out if we don't care about user info
+        if not add_user_info:
+            return await async_handler(request, **kwargs)
 
+        # Otherwise retrieve the user info once per session
         try:
-            user, _info = await client.user_info()
-        except (KeyError, HTTPBadRequest) as exc:
-            _log.exception(exc)
-            return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
-
-        local_email_regex = email_regex or request.app.config.OAUTH_EMAIL_REGEX
-
-        if local_email_regex and user.email:
-            if not local_email_regex.match(user.email):
+            user_info = request['session']['user_info']
+            user = UserInfo(**user_info)
+        except KeyError:
+            client = request.app.oauth_factory(access_token=request['session']['token'])
+            try:
+                user, _info = await client.user_info()
+            except (KeyError, HTTPBadRequest) as exc:
+                _log.exception(exc)
                 return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
 
-        if add_user_info:
-            return await async_handler(request, user, **kwargs)
-        return await async_handler(request, **kwargs)
+            local_email_regex = email_regex or request.app.config.OAUTH_EMAIL_REGEX
+
+            if local_email_regex and user.email:
+                if not local_email_regex.match(user.email):
+                    return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
+
+            request['session']['user_info'] = user
+
+        return await async_handler(request, user, **kwargs)
 
     return wrapped
 
