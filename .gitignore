@@ -4,3 +4,4 @@ test.py
 .cache
 *.egg-info
 .pytest_cache
+node_modules
