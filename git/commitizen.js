@@ -21,4 +21,21 @@ module.exports = {
     { name: "core" },
   ],
   allowCustomScopes: true,
+  scopeOverrides: {
+    chore: [
+      {name: 'git hooks'},
+      {name: 'tests'},
+      {name: 'linters'},
+      {name: 'scripts'},
+      {name: 'docker images'},
+      {name: 'build-system'}
+    ],
+    docs: [
+      {name: "changelog"}
+    ]
+  },
+  messages: {
+    footer: "List any RELATED ISSUES by this change (optional). E.g.: #134, #240:\n"
+  },
+  footerPrefix: "RELATED ISSUES:"
 };
