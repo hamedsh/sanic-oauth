@@ -88,7 +88,7 @@ def login_required(async_handler=None, provider=None, add_user_info=True, email_
             provider = 'default'
         if provider is not None:
             if provider not in provider_confs:
-                if provider == "default" and len(provider_confs) > 0:
+                if provider == "default" and provider_confs:
                     provider_config = next(iter(provider_confs.values()))
                 else:
                     raise OAuthConfigurationException(
@@ -192,8 +192,8 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
                 f"Class must be a child of sanic_oauth.core.Client class")
         provider_listing = {'provider_class': p_class}
         provider_setting = {k.lower(): v for k, v in provider_conf.items()}
-        for k, v in client_setting.items():
-            provider_setting.setdefault(k, v)
+        for key, val in client_setting.items():
+            provider_setting.setdefault(key, val)
         provider_listing['provider_setting'] = provider_setting
         provider_conf['PROVIDER_CLASS'] = p_class_link
         provider_conf['REDIRECT_URI'] = redirect_uri
@@ -219,7 +219,7 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
             raise OAuthConfigurationException(f"Class must be a child of sanic_oauth.core.Client class")
     else:
         # Use the first defined named-provider as the fallback
-        p_name, p_listing = next(iter(providers.items()))
+        _, p_listing = next(iter(providers.items()))
         provider_class = p_listing['provider_class']
         client_setting = p_listing['provider_setting']
 
