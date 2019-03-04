@@ -86,16 +86,15 @@ def login_required(async_handler=None, provider=None, add_user_info=True, email_
         provider_confs = request.app.config.get('OAUTH_PROVIDERS', {})
         if provider is None and 'default' in provider_confs:
             provider = 'default'
-        if provider is not None:
-            if provider not in provider_confs:
+        if provider:
+            try:
+                provider_config = provider_confs[provider]
+            except KeyError:
                 if provider == "default" and provider_confs:
                     provider_config = next(iter(provider_confs.values()))
                 else:
                     raise OAuthConfigurationException(
                         "No provider named {} configured".format(provider))
-            else:
-                provider_config = provider_confs[provider]
-
             oauth_endpoint_path = provider_config.get('ENDPOINT_PATH', None)
             oauth_email_regex = provider_config.get('EMAIL_REGEX', None)
         if not oauth_endpoint_path:
