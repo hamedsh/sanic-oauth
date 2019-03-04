@@ -28,38 +28,86 @@ class OAuthConfigurationException(Exception):
 
 
 async def oauth(request: Request) -> HTTPResponse:
-    client = request.app.oauth_factory()
+    provider = request['session'].get('oauth_provider', None)
+    provider_confs = request.app.config.get('OAUTH_PROVIDERS', {})
+    if provider is None and 'default' in provider_confs:
+        provider = 'default'
+    if provider:
+        if provider not in provider_confs:
+            return HTTPResponse(status=404)
+        provider_conf = provider_confs[provider]
+        use_scope = provider_conf['SCOPE']
+        use_redirect_uri = provider_conf['REDIRECT_URI']
+        use_after_auth_default_redirect = \
+            provider_conf['AFTER_AUTH_DEFAULT_REDIRECT']
+    else:
+        use_scope = request.app.config.OAUTH_SCOPE
+        use_redirect_uri = request.app.config.OAUTH_REDIRECT_URI
+        use_after_auth_default_redirect = \
+            request.app.config.OAUTH_AFTER_AUTH_DEFAULT_REDIRECT
+    client = request.app.oauth_factory(provider=provider)
     if 'code' not in request.args:
         return redirect(client.get_authorize_url(
-            scope=request.app.config.OAUTH_SCOPE,
-            redirect_uri=request.app.config.OAUTH_REDIRECT_URI
+            scope=use_scope,
+            redirect_uri=use_redirect_uri
         ))
+
     token, _data = await client.get_access_token(
         request.args.get('code'),
-        redirect_uri=request.app.config.OAUTH_REDIRECT_URI
+        redirect_uri=use_redirect_uri
     )
     request['session']['token'] = token
-    return redirect(request['session'].get('after_auth_redirect', request.app.config.OAUTH_AFTER_AUTH_DEFAULT_REDIRECT))
+    if provider:
+        #remember provider
+        request['session']['oauth_provider'] = provider
+    elif 'oauth_provider' in request['session']:
+        #forget remembered provider
+        del request['session']['oauth_provider']
+    return redirect(request['session'].get('after_auth_redirect',
+                                           use_after_auth_default_redirect))
 
 
-def login_required(async_handler=None, add_user_info=True, email_regex=None):
+def login_required(async_handler=None, provider=None, add_user_info=True, email_regex=None):
     """
     auth decorator
     call function(request, user: <sanic_oauth UserInfo object>)
     """
 
     if async_handler is None:
-        return partial(login_required, add_user_info=add_user_info, email_regex=email_regex)
+        return partial(login_required, provider=provider, add_user_info=add_user_info, email_regex=email_regex)
 
     if email_regex is not None:
         email_regex = re.compile(email_regex)
 
     async def wrapped(request, **kwargs):
+        nonlocal provider
+        oauth_endpoint_path = None
+        oauth_email_regex = None
+        provider_confs = request.app.config.get('OAUTH_PROVIDERS', {})
+        if provider is None and 'default' in provider_confs:
+            provider = 'default'
+        if provider is not None:
+            if provider not in provider_confs:
+                if provider == "default" and len(provider_confs) > 0:
+                    provider_config = next(iter(provider_confs.values()))
+                else:
+                    raise OAuthConfigurationException(
+                        "No provider named {} configured".format(provider))
+            else:
+                provider_config = provider_confs[provider]
 
+            oauth_endpoint_path = provider_config.get('ENDPOINT_PATH', None)
+            oauth_email_regex = provider_config.get('EMAIL_REGEX', None)
+        if not oauth_endpoint_path:
+            oauth_endpoint_path = request.app.config.OAUTH_ENDPOINT_PATH
+        if not oauth_email_regex:
+            oauth_email_regex = request.app.config.OAUTH_EMAIL_REGEX
         # Do core oauth authentication once per session
         if 'token' not in request['session']:
+            if provider:
+                request['session']['oauth_provider'] = provider
             request['session']['after_auth_redirect'] = request.path
-            return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
+            return redirect(oauth_endpoint_path)
 
         # Shortcircuit out if we don't care about user info
         if not add_user_info:
@@ -70,18 +118,22 @@ def login_required(async_handler=None, add_user_info=True, email_regex=None):
             user_info = request['session']['user_info']
             user = UserInfo(**user_info)
         except KeyError:
-            client = request.app.oauth_factory(access_token=request['session']['token'])
+            factory_args = {'access_token': request['session']['token']}
+            oauth_provider = request['session'].get('oauth_provider', provider)
+            if oauth_provider:
+                factory_args['provider'] = provider
+            client = request.app.oauth_factory(**factory_args)
             try:
                 user, _info = await client.user_info()
             except (KeyError, HTTPBadRequest) as exc:
                 _log.exception(exc)
-                return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
+                return redirect(oauth_endpoint_path)
 
-            local_email_regex = email_regex or request.app.config.OAUTH_EMAIL_REGEX
+            local_email_regex = email_regex or oauth_email_regex
 
             if local_email_regex and user.email:
                 if not local_email_regex.match(user.email):
-                    return redirect(request.app.config.OAUTH_ENDPOINT_PATH)
+                    return redirect(oauth_endpoint_path)
 
             request['session']['user_info'] = user
 
@@ -108,31 +160,82 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
     oauth_scope: str = sanic_app.config.pop('OAUTH_SCOPE', None)
     oauth_endpoint_path: str = sanic_app.config.pop('OAUTH_ENDPOINT_PATH', '/oauth')
     oauth_email_regex: str = sanic_app.config.pop('OAUTH_EMAIL_REGEX', None)
-    if provider_class_link is None:
-        raise OAuthConfigurationException("You should setup OAUTH_PROVIDER setting for app")
-    if oauth_redirect_uri is None:
-        raise OAuthConfigurationException("You should setup OAUTH_REDIRECT_URI setting for app")
-    if oauth_scope is None:
-        raise OAuthConfigurationException("You should setup OAUTH_SCOPE setting for app")
-    provider_module_path, provider_class_name = provider_class_link.rsplit('.', 1)
-    module_object = importlib.import_module(provider_module_path)
-    if module_object is None:
-        raise OAuthConfigurationException(f"Cannot find module {provider_module_path} to import OAuth provider")
-    provider_class = getattr(module_object, provider_class_name, None)
-    if provider_class is None:
-        raise OAuthConfigurationException(f"Cannot find class {provider_class_name} in module {provider_module_path}")
-    if not issubclass(provider_class, Client):
-        raise OAuthConfigurationException(f"Class must be a child of sanic_oauth.core.Client class")
+    providers = {}
+    providers_conf = sanic_app.config.pop('OAUTH_PROVIDERS', None)
     client_setting = {
         config_key[6:].lower(): sanic_app.config.get(config_key)
         for config_key in sanic_app.config.keys() if config_key.startswith('OAUTH')
     }
+    for provider_name, provider_conf in providers_conf.items():
+        provider_conf.setdefault('AFTER_AUTH_DEFAULT_REDIRECT', '/')
+        p_class_link = provider_conf.pop('PROVIDER_CLASS', None)
+        if p_class_link is None:
+            raise OAuthConfigurationException("Provider config must have PROVIDER_CLASS set.")
+        redirect_uri = provider_conf.pop('REDIRECT_URI', oauth_redirect_uri)
+        if redirect_uri is None:
+            raise OAuthConfigurationException("Provider config must have REDIRECT_URI set when there is no global OAUTH_REDIRECT_URI set.")
+        scope = provider_conf.pop('SCOPE', oauth_scope)
+        if scope is None:
+            raise OAuthConfigurationException("Provider config must have SCOPE set when there is no global OAUTH_SCOPE set.")
+        endpoint_path = provider_conf.pop('ENDPOINT_PATH', oauth_endpoint_path)
+        p_module_path, p_class_name = p_class_link.rsplit('.', 1)
+        module_obj = importlib.import_module(p_module_path)
+        if module_obj is None:
+            raise OAuthConfigurationException(
+                f"Cannot find module {p_module_path} to import OAuth provider")
+        p_class = getattr(module_obj, p_class_name, None)
+        if p_class is None:
+            raise OAuthConfigurationException(
+                f"Cannot find class {p_class_name} in module {p_module_path}")
+        if not issubclass(p_class, Client):
+            raise OAuthConfigurationException(
+                f"Class must be a child of sanic_oauth.core.Client class")
+        provider_listing = {'provider_class': p_class}
+        provider_setting = {k.lower(): v for k, v in provider_conf.items()}
+        for k, v in client_setting.items():
+            provider_setting.setdefault(k, v)
+        provider_listing['provider_setting'] = provider_setting
+        provider_conf['PROVIDER_CLASS'] = p_class_link
+        provider_conf['REDIRECT_URI'] = redirect_uri
+        provider_conf['SCOPE'] = scope
+        provider_conf['ENDPOINT_PATH'] = endpoint_path
+        providers[provider_name] = provider_listing
 
-    def oauth_factory(access_token: str = None) -> Client:
-        result = provider_class(
+    if provider_class_link is None and len(providers) < 1:
+        raise OAuthConfigurationException("You should setup OAUTH_PROVIDER setting for app")
+    if oauth_redirect_uri is None and len(providers) < 1:
+        raise OAuthConfigurationException("You should setup OAUTH_REDIRECT_URI setting for app")
+    if oauth_scope is None and len(providers) < 1:
+        raise OAuthConfigurationException("You should setup OAUTH_SCOPE setting for app")
+    if provider_class_link:
+        provider_module_path, provider_class_name = provider_class_link.rsplit('.', 1)
+        module_object = importlib.import_module(provider_module_path)
+        if module_object is None:
+            raise OAuthConfigurationException(f"Cannot find module {provider_module_path} to import OAuth provider")
+        provider_class = getattr(module_object, provider_class_name, None)
+        if provider_class is None:
+            raise OAuthConfigurationException(f"Cannot find class {provider_class_name} in module {provider_module_path}")
+        if not issubclass(provider_class, Client):
+            raise OAuthConfigurationException(f"Class must be a child of sanic_oauth.core.Client class")
+    else:
+        # Use the first defined named-provider as the fallback
+        p_name, p_listing = next(iter(providers.items()))
+        provider_class = p_listing['provider_class']
+        client_setting = p_listing['provider_setting']
+
+
+    def oauth_factory(access_token: str = None, provider=None) -> Client:
+        if provider is not None:
+            provider_listing = providers[provider]
+            use_provider_class = provider_listing['provider_class']
+            use_client_setting = provider_listing['provider_setting']
+        else:
+            use_provider_class = provider_class
+            use_client_setting = client_setting
+        result = use_provider_class(
             sanic_app.async_session,
             access_token=access_token,
-            **client_setting
+            **use_client_setting
         )
         return result
 
@@ -140,6 +243,7 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
     sanic_app.config.OAUTH_REDIRECT_URI = oauth_redirect_uri
     sanic_app.config.OAUTH_SCOPE = oauth_scope
     sanic_app.config.OAUTH_ENDPOINT_PATH = oauth_endpoint_path
+    sanic_app.config.OAUTH_PROVIDERS = providers_conf
 
     if oauth_email_regex:
         sanic_app.config.OAUTH_EMAIL_REGEX = re.compile(oauth_email_regex)
