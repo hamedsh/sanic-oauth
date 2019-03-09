@@ -14,11 +14,8 @@ module.exports = {
     { value: 'WIP', name: 'WIP:      Work in progress' }
   ],
   scopes: [
-    { name: "query" },
-    { name: "couchdb" },
-    { name: "rethinkdb" },
-    { name: "uqlite" },
     { name: "core" },
+    { name: "blueprint" },
   ],
   allowCustomScopes: true,
   scopeOverrides: {

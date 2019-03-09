@@ -1,16 +1,16 @@
 image: "python:3.6"
 
 before_script:
-  - pip install .
-  - pip install -r requirements-dev.txt
+  - pip install pipenv
+  - pipenv install -d --system
 
 stages:
   - test
   - upload
 
-check-code:
+lint-code:
   stage: test
-  script: make check
+  script: make lint
 
 run-test:
   stage: test
