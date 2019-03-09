@@ -160,7 +160,7 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
     oauth_endpoint_path: str = sanic_app.config.pop('OAUTH_ENDPOINT_PATH', '/oauth')
     oauth_email_regex: str = sanic_app.config.pop('OAUTH_EMAIL_REGEX', None)
     providers = {}
-    providers_conf = sanic_app.config.pop('OAUTH_PROVIDERS', None)
+    providers_conf = sanic_app.config.pop('OAUTH_PROVIDERS', {})
     client_setting = {
         config_key[6:].lower(): sanic_app.config.get(config_key)
         for config_key in sanic_app.config.keys() if config_key.startswith('OAUTH')
@@ -242,7 +242,8 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
     sanic_app.config.OAUTH_REDIRECT_URI = oauth_redirect_uri
     sanic_app.config.OAUTH_SCOPE = oauth_scope
     sanic_app.config.OAUTH_ENDPOINT_PATH = oauth_endpoint_path
-    sanic_app.config.OAUTH_PROVIDERS = providers_conf
+    if providers_conf:
+        sanic_app.config.OAUTH_PROVIDERS = providers_conf
 
     if oauth_email_regex:
         sanic_app.config.OAUTH_EMAIL_REGEX = re.compile(oauth_email_regex)
