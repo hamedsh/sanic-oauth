@@ -154,7 +154,6 @@ class Client(abc.ABC):
     @abc.abstractmethod
     def user_parse(cls, data) -> UserInfo:
         """Parse user's information from given provider data."""
-        pass
 
 
 class OAuth1Client(Client):  # pylint: disable=abstract-method
