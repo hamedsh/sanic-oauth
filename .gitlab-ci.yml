@@ -8,9 +8,9 @@ stages:
   - test
   - upload
 
-check-code:
+lint-code:
   stage: test
-  script: make check
+  script: make lint
 
 run-test:
   stage: test
