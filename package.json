@@ -1,7 +1,7 @@
 {
     "husky": {
         "hooks": {
-            "pre-push": "make check",
+            "pre-push": "make lint pytest",
             "commit-msg": "commitlint -E HUSKY_GIT_PARAMS -g './git/commitlint.js'"
         }
     },

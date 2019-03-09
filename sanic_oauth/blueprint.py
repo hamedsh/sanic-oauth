@@ -2,6 +2,7 @@ import importlib
 import logging
 from functools import partial
 import re
+import typing
 
 from aiohttp.web_exceptions import HTTPBadRequest
 from sanic import Blueprint, Sanic
@@ -58,13 +59,39 @@ async def oauth(request: Request) -> HTTPResponse:
     )
     request['session']['token'] = token
     if provider:
-        #remember provider
+        # remember provider
         request['session']['oauth_provider'] = provider
     elif 'oauth_provider' in request['session']:
-        #forget remembered provider
+        # forget remembered provider
         del request['session']['oauth_provider']
     return redirect(request['session'].get('after_auth_redirect',
                                            use_after_auth_default_redirect))
+
+
+async def fetch_user_info(request, provider, oauth_endpoint_path, local_email_regex) -> UserInfo:
+    try:
+        user_info = request['session']['user_info']
+        user = UserInfo(**user_info)
+    except KeyError:
+        factory_args = {'access_token': request['session']['token']}
+        oauth_provider = request['session'].get('oauth_provider', provider)
+        if oauth_provider:
+            factory_args['provider'] = provider
+        client = request.app.oauth_factory(**factory_args)
+        print(client)
+        print(factory_args)
+        try:
+            user, _info = await client.user_info()
+        except (KeyError, HTTPBadRequest) as exc:
+            _log.exception(exc)
+            return redirect(oauth_endpoint_path)
+
+        if local_email_regex and user.email:
+            if not local_email_regex.match(user.email):
+                return redirect(oauth_endpoint_path)
+
+        request['session']['user_info'] = user
+    return user
 
 
 def login_required(async_handler=None, provider=None, add_user_info=True, email_regex=None):
@@ -113,29 +140,10 @@ def login_required(async_handler=None, provider=None, add_user_info=True, email_
             return await async_handler(request, **kwargs)
 
         # Otherwise retrieve the user info once per session
-        try:
-            user_info = request['session']['user_info']
-            user = UserInfo(**user_info)
-        except KeyError:
-            factory_args = {'access_token': request['session']['token']}
-            oauth_provider = request['session'].get('oauth_provider', provider)
-            if oauth_provider:
-                factory_args['provider'] = provider
-            client = request.app.oauth_factory(**factory_args)
-            try:
-                user, _info = await client.user_info()
-            except (KeyError, HTTPBadRequest) as exc:
-                _log.exception(exc)
-                return redirect(oauth_endpoint_path)
-
-            local_email_regex = email_regex or oauth_email_regex
-
-            if local_email_regex and user.email:
-                if not local_email_regex.match(user.email):
-                    return redirect(oauth_endpoint_path)
-
-            request['session']['user_info'] = user
-
+        user = await fetch_user_info(
+            request, provider, oauth_endpoint_path,
+            email_regex or oauth_email_regex
+        )
         return await async_handler(request, user, **kwargs)
 
     return wrapped
@@ -149,22 +157,12 @@ async def configuration_check(sanic_app: Sanic, _loop) -> None:
         raise OAuthConfigurationException("You should configure session_interface from sanic-session")
 
 
-@oauth_blueprint.listener('after_server_start')
-async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
+def setup_providers(  # pylint: disable=too-many-locals
+        providers_conf: typing.Dict, oauth_redirect_uri: str,
+        oauth_scope: str, oauth_endpoint_path: str) -> typing.Dict:
     from .core import Client
 
-    sanic_app.config.setdefault('OAUTH_AFTER_AUTH_DEFAULT_REDIRECT', '/')
-    provider_class_link: str = sanic_app.config.pop('OAUTH_PROVIDER', None)
-    oauth_redirect_uri: str = sanic_app.config.pop('OAUTH_REDIRECT_URI', None)
-    oauth_scope: str = sanic_app.config.pop('OAUTH_SCOPE', None)
-    oauth_endpoint_path: str = sanic_app.config.pop('OAUTH_ENDPOINT_PATH', '/oauth')
-    oauth_email_regex: str = sanic_app.config.pop('OAUTH_EMAIL_REGEX', None)
     providers = {}
-    providers_conf = sanic_app.config.pop('OAUTH_PROVIDERS', {})
-    client_setting = {
-        config_key[6:].lower(): sanic_app.config.get(config_key)
-        for config_key in sanic_app.config.keys() if config_key.startswith('OAUTH')
-    }
     for provider_name, provider_conf in providers_conf.items():
         provider_conf.setdefault('AFTER_AUTH_DEFAULT_REDIRECT', '/')
         p_class_link = provider_conf.pop('PROVIDER_CLASS', None)
@@ -191,20 +189,30 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
                 f"Class must be a child of sanic_oauth.core.Client class")
         provider_listing = {'provider_class': p_class}
         provider_setting = {k.lower(): v for k, v in provider_conf.items()}
-        for key, val in client_setting.items():
-            provider_setting.setdefault(key, val)
         provider_listing['provider_setting'] = provider_setting
         provider_conf['PROVIDER_CLASS'] = p_class_link
         provider_conf['REDIRECT_URI'] = redirect_uri
         provider_conf['SCOPE'] = scope
         provider_conf['ENDPOINT_PATH'] = endpoint_path
         providers[provider_name] = provider_listing
+    return providers
 
-    if provider_class_link is None and len(providers) < 1:
+
+def legacy_oauth_configuration(
+        sanic_app: Sanic, provider_class_link: str,
+        oauth_redirect_uri: str, oauth_scope: str):
+    from .core import Client
+
+    client_setting = {
+        config_key[6:].lower(): sanic_app.config.get(config_key)
+        for config_key in sanic_app.config.keys() if config_key.startswith('OAUTH')
+    }
+
+    if provider_class_link is None:
         raise OAuthConfigurationException("You should setup OAUTH_PROVIDER setting for app")
-    if oauth_redirect_uri is None and len(providers) < 1:
+    if oauth_redirect_uri is None:
         raise OAuthConfigurationException("You should setup OAUTH_REDIRECT_URI setting for app")
-    if oauth_scope is None and len(providers) < 1:
+    if oauth_scope is None:
         raise OAuthConfigurationException("You should setup OAUTH_SCOPE setting for app")
     if provider_class_link:
         provider_module_path, provider_class_name = provider_class_link.rsplit('.', 1)
@@ -215,16 +223,40 @@ async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
         if provider_class is None:
             raise OAuthConfigurationException(f"Cannot find class {provider_class_name} in module {provider_module_path}")
         if not issubclass(provider_class, Client):
-            raise OAuthConfigurationException(f"Class must be a child of sanic_oauth.core.Client class")
-    else:
-        # Use the first defined named-provider as the fallback
+            raise OAuthConfigurationException("Class must be a child of sanic_oauth.core.Client class")
+    return client_setting, provider_class
+
+
+@oauth_blueprint.listener('after_server_start')
+async def create_oauth_factory(sanic_app: Sanic, _loop) -> None:
+    from .core import Client
+
+    sanic_app.config.setdefault('OAUTH_AFTER_AUTH_DEFAULT_REDIRECT', '/')
+    oauth_redirect_uri: str = sanic_app.config.pop('OAUTH_REDIRECT_URI', None)
+    oauth_scope: str = sanic_app.config.pop('OAUTH_SCOPE', None)
+    oauth_endpoint_path: str = sanic_app.config.pop('OAUTH_ENDPOINT_PATH', '/oauth')
+    oauth_email_regex: str = sanic_app.config.pop('OAUTH_EMAIL_REGEX', None)
+    providers_conf = sanic_app.config.pop('OAUTH_PROVIDERS', {})
+    providers: typing.Optional[typing.Dict] = None
+    if providers_conf:
+        providers = setup_providers(
+            providers_conf, oauth_redirect_uri,
+            oauth_scope, oauth_endpoint_path
+        )
         _, p_listing = next(iter(providers.items()))
         provider_class = p_listing['provider_class']
         client_setting = p_listing['provider_setting']
-
+    else:
+        provider_class_link: str = sanic_app.config.pop('OAUTH_PROVIDER', None)
+        client_setting, provider_class = legacy_oauth_configuration(
+            sanic_app, provider_class_link,
+            oauth_redirect_uri, oauth_scope
+        )
 
     def oauth_factory(access_token: str = None, provider=None) -> Client:
         if provider is not None:
+            if providers is None:
+                raise OAuthConfigurationException("You can use provider mark only when multiple providers are configured")
             provider_listing = providers[provider]
             use_provider_class = provider_listing['provider_class']
             use_client_setting = provider_listing['provider_setting']
