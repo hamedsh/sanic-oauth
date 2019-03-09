@@ -5,3 +5,5 @@ test.py
 *.egg-info
 .pytest_cache
 node_modules
+venv/
+.idea/
