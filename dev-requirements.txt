@@ -1,0 +1,4 @@
+pytest
+pytest-asyncio
+sanic
+sanic_session

@@ -1,0 +1,19 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+pylint = "<2.3.0"
+mypy = ">=0.670"
+pycodestyle = ">=2.5.0"
+pytest = ">=4.3.0"
+pytest-asyncio = ">=0.10.0"
+sanic-session = ">=0.5.0"
+ipdb = "*"
+
+[packages]
+sanic-oauth = {editable = true,path = "."}
+
+[requires]
+python_version = "3.7"

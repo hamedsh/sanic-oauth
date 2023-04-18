@@ -1,0 +1,10 @@
+.mypy_cache
+__pycache__
+test.py
+.cache
+*.egg-info
+.pytest_cache
+node_modules
+venv/
+.idea/
+.vscode
