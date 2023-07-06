@@ -14,14 +14,14 @@ __author__ = "Bogdan Gladyshev"
 __copyright__ = "Copyright 2017, Bogdan Gladyshev"
 __credits__ = ["Bogdan Gladyshev"]
 __license__ = "MIT"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __maintainer__ = "Bogdan Gladyshev"
 __email__ = "siredvin.dark@gmail.com"
 __status__ = "Production"
 
 _log = logging.getLogger(__name__)
 
-oauth_blueprint = Blueprint('OAuth Configuration')  # pylint: disable=invalid-name
+oauth_blueprint = Blueprint('OAuth_Configuration')  # pylint: disable=invalid-name
 
 
 class OAuthConfigurationException(Exception):

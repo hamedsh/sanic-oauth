@@ -14,7 +14,7 @@ def _read(fname):
 
 setup(
     name='sanic-oauth',
-    version='0.4.0',
+    version='0.5.0',
     license='MIT',
     long_description=_read('README.rst'),
     keywords=['asyncio', 'http', 'oauth', 'sanic'],
@@ -37,7 +37,7 @@ setup(
         'Topic :: Utilities',
     ],
     install_requires=[
-        "yarl~=1.2.6",
-        "aiohttp~=3.3.2"
+        "yarl~=1.0",
+        "aiohttp~=3.0"
     ],
 )
