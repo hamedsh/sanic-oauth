@@ -14,7 +14,7 @@ __author__ = "Bogdan Gladyshev"
 __copyright__ = "Copyright 2017, Bogdan Gladyshev"
 __credits__ = ["Bogdan Gladyshev"]
 __license__ = "MIT"
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __maintainer__ = "Bogdan Gladyshev"
 __email__ = "siredvin.dark@gmail.com"
 __status__ = "Production"
@@ -29,7 +29,7 @@ class OAuthConfigurationException(Exception):
 
 
 async def oauth(request: Request) -> HTTPResponse:
-    provider = request['session'].get('oauth_provider', None)
+    provider = request.ctx.session.get('oauth_provider', None)
     provider_confs = request.app.config.get('OAUTH_PROVIDERS', {})
     if provider is None and 'default' in provider_confs:
         provider = 'default'
@@ -46,7 +46,7 @@ async def oauth(request: Request) -> HTTPResponse:
         use_redirect_uri = request.app.config.OAUTH_REDIRECT_URI
         use_after_auth_default_redirect = \
             request.app.config.OAUTH_AFTER_AUTH_DEFAULT_REDIRECT
-    client = request.app.oauth_factory(provider=provider)
+    client = request.app.ctx.oauth_factory(provider=provider)
     if 'code' not in request.args:
         return redirect(client.get_authorize_url(
             scope=use_scope,
@@ -57,27 +57,27 @@ async def oauth(request: Request) -> HTTPResponse:
         request.args.get('code'),
         redirect_uri=use_redirect_uri
     )
-    request['session']['token'] = token
+    request.ctx.session['token'] = token
     if provider:
         # remember provider
-        request['session']['oauth_provider'] = provider
-    elif 'oauth_provider' in request['session']:
+        request.ctx.session['oauth_provider'] = provider
+    elif 'oauth_provider' in request.ctx.session:
         # forget remembered provider
-        del request['session']['oauth_provider']
-    return redirect(request['session'].get('after_auth_redirect',
+        del request.ctx.session['oauth_provider']
+    return redirect(request.ctx.session.get('after_auth_redirect',
                                            use_after_auth_default_redirect))
 
 
 async def fetch_user_info(request, provider, oauth_endpoint_path, local_email_regex) -> UserInfo:
     try:
-        user_info = request['session']['user_info']
+        user_info = request.ctx.session['user_info']
         user = UserInfo(**user_info)
     except KeyError:
-        factory_args = {'access_token': request['session']['token']}
-        oauth_provider = request['session'].get('oauth_provider', provider)
+        factory_args = {'access_token': request.ctx.session['token']}
+        oauth_provider = request.ctx.session.get('oauth_provider', provider)
         if oauth_provider:
             factory_args['provider'] = provider
-        client = request.app.oauth_factory(**factory_args)
+        client = request.app.ctx.oauth_factory(**factory_args)
         print(client)
         print(factory_args)
         try:
@@ -90,7 +90,7 @@ async def fetch_user_info(request, provider, oauth_endpoint_path, local_email_re
             if not local_email_regex.match(user.email):
                 return redirect(oauth_endpoint_path)
 
-        request['session']['user_info'] = user
+        request.ctx.session['user_info'] = user
     return user
 
 
@@ -129,10 +129,10 @@ def login_required(async_handler=None, provider=None, add_user_info=True, email_
         if not oauth_email_regex:
             oauth_email_regex = request.app.config.OAUTH_EMAIL_REGEX
         # Do core oauth authentication once per session
-        if 'token' not in request['session']:
+        if 'token' not in request.ctx.session:
             if provider:
-                request['session']['oauth_provider'] = provider
-            request['session']['after_auth_redirect'] = request.path
+                request.ctx.session['oauth_provider'] = provider
+            request.ctx.session['after_auth_redirect'] = request.path
             return redirect(oauth_endpoint_path)
 
         # Shortcircuit out if we don't care about user info
